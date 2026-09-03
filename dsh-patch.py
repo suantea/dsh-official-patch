@@ -65,4 +65,59 @@ if marker not in pdata:
 else:
     print("==> preload: 已打过补丁，跳过")
 
+# ============ 5. 界面文案汉化（zh 段内替换，11 处） ============
+# 每个包 zh 字典里值仍为英文的键 → 中文。技术词/单位不翻。
+import re as _re, os as _os
+ZH_FIXES = {
+    "dsh-client-ui-chat": {
+        '"settings.transcript.normal": "Normal",': '"settings.transcript.normal": "标准",',
+        '"settings.transcript.compact": "Compact",': '"settings.transcript.compact": "紧凑",',
+    },
+    "dsh-client-ui-cordis": {
+        '"panel.trigger": "Cordis Plugin",': '"panel.trigger": "Cordis 插件",',
+        '"panel.runningCount": "{count} running",': '"panel.runningCount": "{count} 个运行中",',
+        '"body.hostCode": "Host",': '"body.hostCode": "宿主",',
+        '"body.clientCode": "Client",': '"body.clientCode": "客户端",',
+    },
+    "dsh-client-ui-model-selection": {
+        '"effort.providerDefault": "Default",': '"effort.providerDefault": "默认",',
+    },
+    "dsh-client-ui-plan": {
+        '"chip.label": "Plan",': '"chip.label": "计划",',
+    },
+    "dsh-client-ui-skill": {
+        '"row.title": "Skill",': '"row.title": "技能",',
+    },
+    "dsh-client-ui-trajectory": {
+        '"tab.schema": "Schema",': '"tab.schema": "架构",',
+    },
+}
+# conversation 的汉化在 conv_path 自身
+ZH_FIXES["dsh-client-ui-conversation"] = {
+    '"access.fullLabel": "Full access",': '"access.fullLabel": "完全访问",',
+}
+_app_root = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(conv_path))))
+for _pkg, _repl in ZH_FIXES.items():
+    _p = _os.path.join(_app_root, "node_modules", "@deepseek-ai", _pkg, "lib", "client.js")
+    if not _os.path.exists(_p):
+        print("==> 汉化 %s: 文件不存在，跳过" % _pkg)
+        continue
+    _d = read(_p)
+    _zs = _d.find("\t\tconst zh = {")
+    _es = _d.find("\t\tconst en = {")
+    if _zs < 0 or _es < 0 or _es < _zs:
+        print("==> 汉化 %s: 找不到 zh/en 边界，跳过" % _pkg)
+        continue
+    _zone = _d[_zs:_es]
+    _done = 0
+    for _old, _new in _repl.items():
+        if _new in _zone:
+            _done += 1  # 已汉化
+        elif _old in _zone:
+            _zone = _zone.replace(_old, _new, 1)
+            _done += 1
+    if _done:
+        write(_p, _d[:_zs] + _zone + _d[_es:])
+        print("==> 汉化 %s: %d 条已应用" % (_pkg, _done))
+
 print("==> 全部完成")
