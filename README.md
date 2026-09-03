@@ -13,20 +13,42 @@
 
 改完用 `codesign --force --deep --sign -` ad-hoc 重签，否则 macOS 拒绝启动修改过的签名包。
 
-## 用法
+## 安装流程（首次）
 
 ```bash
-# 默认目标 /Applications/DSH Desktop.app；装别处就传路径
-./install-patch.sh
-./install-patch.sh "/path/to/DSH Desktop.app"
+# 1. 确认已装回官方正式版（不是 fork 版），默认装在 /Applications/DSH Desktop.app
+ls "/Applications/DSH Desktop.app/Contents/Resources/app/node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js"
+
+# 2. 跑一次脚本即可
+~/dev/dsh-official-patch/install-patch.sh
+
+# 3. 启动 DSH Desktop
+open -a "DSH Desktop"
 ```
 
-脚本行为：
+**测试**：把 PDF / Word / txt / md 拖进对话输入框，应能看到 `@/绝对路径` 被插入；图片仍走原附件通道不变。发出去让 agent 读取即可。
 
-- **备份**：每个被改文件旁生成一份 `*.dshbak`（仅首次）；
-- **幂等**：检测到两处补丁已应用则直接退出，可安全重复执行；
-- **校验**：锚点匹配失败即中止并打印现场片段（版本漂移时据此适配）；
-- **重签**：ad-hoc 深签 + 清除 quarantine 属性。
+## 故障排查
+
+| 现象 | 原因 | 解法 |
+|---|---|---|
+| 脚本报「找不到 client.js」 | 路径不对，不是官方包 | 把 .app 拖到终端自动填路径：`./install-patch.sh "$(find ~/Applications -name "DSH Desktop.app")"` |
+| 脚本报「锚点匹配失败」 | 官方版本不同、代码已漂移 | 保留错误打印的现场片段发给维护者适配 |
+| 启动被 Gatekeeper 拦 | ad-hoc 签名 macOS 需手动放行 | 右键应用 → 打开（只需操作一次） |
+| 启动后仍说两个插件加载失败 | 插件是针对早期 harness 装的，与补丁无关 | 在启动失败弹窗里「卸载这 2 个插件」即可继续 |
+| 官方提示有新版本 | 应用内置更新源（`dshdesktop.com`）会覆盖补丁 | 同意更新后重跑一次脚本（几秒） |
+| 脚本显示「均已应用，无需重复操作」 | 之前已打过补丁 | 正常跳过，不是坏现象 |
+
+## 卸载补丁
+
+```bash
+cd "/Applications/DSH Desktop.app/Contents/Resources/app"
+mv node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js.dshbak \
+   node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
+mv out/preload/index.cjs.dshbak out/preload/index.cjs
+```
+
+或直接重装官方包。
 
 ## 恢复 / 卸载补丁
 
