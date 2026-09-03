@@ -114,7 +114,6 @@ block_paste = (
     "\t\t\t\t\tconst p = q !== undefined ? q : plain;\n"
     "\t\t\t\t\treturn window.dshDesktopPendingFilePaths && window.dshDesktopPendingFilePaths.includes(p) ? \"\\uFFFC\" : \"@\" + p;\n"
     "\t\t\t\t});\n"
-    "\t\t\t\tconst clean = text.replace(REFERENCE_PLACEHOLDER_RE, \"\");\n"
 )
 block_je2 = (
     "\t\t\t\tif (files.length > 0) {\n"
