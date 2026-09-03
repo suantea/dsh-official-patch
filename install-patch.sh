@@ -72,7 +72,7 @@ anchor_conv = (
     "\t\t\tconst intakeImages = (0, react.useCallback)((files) => {\n"
     "\t\t\t\tif (addImages === void 0 || files.length === 0) return;\n"
 )
-# 插入块：非图片文件经桌面桥解析真实路径 → @路径 引用文本
+# 插入块：非图片文件经桌面桥解析真实路径 → @路径 引用（显示文件名 chip）
 block_conv = (
     "\t\t\t\tconst bridge = typeof window !== \"undefined\" && window.dshDesktopFileBridge || null;\n"
     "\t\t\t\tif (bridge !== null && typeof bridge.getPathForFile === \"function\") {\n"
@@ -83,7 +83,23 @@ block_conv = (
     "\t\t\t\t\t\ttry { path = bridge.getPathForFile(file); } catch (error) { path = null; }\n"
     "\t\t\t\t\t\tif (typeof path === \"string\" && path !== \"\") refs.push(path); else images.push(file);\n"
     "\t\t\t\t\t}\n"
-    "\t\t\t\t\tif (refs.length > 0 && keyboard !== void 0 && !gate.current.locked && !gate.current.machineBusy) keyboard.paste(refs.map((path) => /\\s/.test(path) ? `@\"${path}\"` : `@${path}`).join(\" \") + \" \");\n"
+    "\t\t\t\t\tif (refs.length > 0 && editor !== null && !gate.current.locked && !gate.current.machineBusy) {\n"
+    "\t\t\t\t\t\tconst refText = refs.map((p) => /\\s/.test(p) ? `@\"${p}\"` : `@${p}`).join(\" \") + \" \";\n"
+    "\t\t\t\t\t\ttry {\n"
+    "\t\t\t\t\t\t\teditor.update(() => {\n"
+    "\t\t\t\t\t\t\t\tconst sel = Kr();\n"
+    "\t\t\t\t\t\t\t\tif (!ur(sel)) return;\n"
+    "\t\t\t\t\t\t\t\tfor (const raw of refText.split(\" \").filter(Boolean)) {\n"
+    "\t\t\t\t\t\t\t\t\tlet p = raw, lbl = raw;\n"
+    "\t\t\t\t\t\t\t\t\tconst qm = /^@\"(.*)\"$/.exec(raw);\n"
+    "\t\t\t\t\t\t\t\t\tif (qm) { p = qm[1]; lbl = p.split(/[\\\\/]/).pop(); }\n"
+    "\t\t\t\t\t\t\t\t\telse { lbl = p.split(/[\\\\/]/).pop(); }\n"
+    "\t\t\t\t\t\t\t\t\tsel.insertNode($createReferenceChipNode({ source: \"dsh-file-reference\", ref: p, label: lbl, clipboardText: \"@\" + p }));\n"
+    "\t\t\t\t\t\t\t\t\tsel.insertText(\" \");\n"
+    "\t\t\t\t\t\t\t\t}\n"
+    "\t\t\t\t\t\t\t});\n"
+    "\t\t\t\t\t\t} catch (_) { keyboard.paste(refText); }\n"
+    "\t\t\t\t\t}\n"
     "\t\t\t\t\tif (images.length === 0) return;\n"
     "\t\t\t\t\tfiles = images;\n"
     "\t\t\t\t}\n"
