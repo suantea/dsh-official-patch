@@ -39,27 +39,25 @@ open -a "DSH Desktop"
 | 官方提示有新版本 | 应用内置更新源（`dshdesktop.com`）会覆盖补丁 | 同意更新后重跑一次脚本（几秒） |
 | 脚本显示「均已应用，无需重复操作」 | 之前已打过补丁 | 正常跳过，不是坏现象 |
 
-## 卸载补丁
+## 备份、还原与卸载
+
+**自动备份**：脚本首次跑时，会把将被替换的原始文件原地保留一份 `.dshbak`（conversation 的 `client.js` 与 preload 的 `index.cjs`），幂等——同一文件不重复覆盖，已打过补丁时直接跳过。附带应用的 11 处界面文案汉化随 `dsh-patch.py` 一并写入，无需单独备份：官方更新会把整个 `Resources/app` 重置为官方原样，届时重跑脚本即可全部恢复。
+
+**还原（手动恢复原版）**：
 
 ```bash
 cd "/Applications/DSH Desktop.app/Contents/Resources/app"
 mv node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js.dshbak \
    node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
 mv out/preload/index.cjs.dshbak out/preload/index.cjs
+codesign --force --deep --sign - "/Applications/DSH Desktop.app"
 ```
 
-或直接重装官方包。
+> 文件被替换后需重新 ad-hoc 签名；若已随官方更新覆盖（原文件本来就是官方原样），直接重跑本脚本即可，无需手动还原。
 
-## 恢复 / 卸载补丁
+**官方更新后**：更新会覆盖补丁与汉化，重跑一次脚本（几秒）即可全部恢复，`.dshbak` 备份也会随之重新生成。
 
-删掉被修改的两个文件，把对应 `.dshbak` 改回原名即可（或直接重装官方包）：
-
-```bash
-cd "/Applications/DSH Desktop.app/Contents/Resources/app"
-mv node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js.dshbak \
-   node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js
-mv out/preload/index.cjs.dshbak out/preload/index.cjs
-```
+**卸载**：按上面「还原」步骤恢复原文件后不再跑脚本即可；或直接重装官方包。
 
 ## 注意
 
