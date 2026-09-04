@@ -8,8 +8,10 @@
 
 1. **preload 注入 `dshDesktopFileBridge`**
    在 `Resources/app/out/preload/index.cjs` 注入 `getPathForFile(file)`，用 Electron `webUtils` 把拖入的 File 解析成真实磁盘路径（web Harness 无此桥，自动回落原行为）。
-2. **conversation 拖放分流**
-   在 `dsh-client-ui-conversation` 的 `intakeImages` 收口处按类型分流：图片走原附件通道不变；非图片经桥取路径后，插入 `@/绝对路径`（含空格自动 `@"..."`）作为文件引用文本。
+2. **conversation 拖放分流 + 文件名 chip**
+   在 `dsh-client-ui-conversation` 的 `intakeImages` 收口处按类型分流：图片走原附件通道不变；非图片经桥取路径后，**直接注入官方 `ReferenceChipNode`（显示文件名 chip）**，发送时以 `@/绝对路径`（含空格自动 `@"..."`）作为文件引用序列化。若 chip 注入不可用（如焦点丢失），自动回退为插入纯文本 `@路径`。
+
+附带改动：`paste()` 挂起路径转 U+FFFC 走官方 chip 渲染、粘贴文件事件取路径、11 处界面文案汉化（详见下方）。脚本对每个注入点支持**多版本锚点候选列表**（候选 1/2…），官方更新导致代码漂移时自动尝试下一组。
 
 改完用 `codesign --force --deep --sign -` ad-hoc 重签，否则 macOS 拒绝启动修改过的签名包。
 
@@ -26,13 +28,13 @@ ls "/Applications/DSH Desktop.app/Contents/Resources/app/node_modules/@deepseek-
 open -a "DSH Desktop"
 ```
 
-**测试**：把 PDF / Word / txt / md 拖进对话输入框，应能看到 `@/绝对路径` 被插入；图片仍走原附件通道不变。发出去让 agent 读取即可。
+**测试**：把 PDF / Word / txt / md 拖进对话输入框，应看到**文件名 chip**（图标 + 文件名）被插入；图片仍走原附件通道不变。发出去让 agent 按 `@路径` 读取即可。
 
 ## 使用方式
 
 补丁装好并启动 DSH Desktop 后，日常这样用：
 
-1. **拖入文件**：从访达把 PDF / Word / txt / md 等直接拖进对话输入框，会自动插入一条 `@/绝对路径` 文件引用（路径含空格时自动写成 `@"/绝对路径"`）。
+1. **拖入文件**：从访达把 PDF / Word / txt / md 等直接拖进对话输入框，会插入一个**文件名 chip**（图标 + 文件名，如 `📄 产品需求文档.pdf`）；发送时序列化为 `@/绝对路径` 文件引用（路径含空格自动 `@"绝对路径"`）。
 2. **发送即可读取**：直接按 Enter 发送，agent 会按 `@路径` 去本机读取文件内容——适合读长文档、代码、数据文件，不用把内容贴进对话。
 3. **图片行为不变**：jpg / png / webp / gif 仍走原来的图片附件通道（缩略图预览），不受影响。
 4. **手动输入同样有效**：想引用某文件时也可直接打字 `@/路径/文件名`（空格路径用 `@"/路径/文件名"`），效果与拖入一致。
@@ -44,6 +46,23 @@ open -a "DSH Desktop"
 **注意事项**：
 - agent 读取的是**本机绝对路径**，文件需停留在原位置；移动/删除文件或换机器后引用会失效。
 - 扫描版 PDF（纯图片、无文字层）agent 读不到文字，需先经 OCR 转成带文字层的 PDF 再拖入。
+
+## 扫描件 OCR（dsh-ocr）
+
+扫描版 PDF（纯图片、无文字层）agent 读不到文字，用仓库里的零依赖 OCR 工具（macOS 自带 Vision framework，无需安装任何东西）先转出文字层：
+
+```bash
+# 基本用法：输出 <输入名>.ocr.txt（每页文本）
+~/dev/dsh-official-patch/dsh-ocr ~/Downloads/扫描件.pdf
+
+# 同时输出带可搜索文字层的 <输入名>.ocr.pdf（白色隐形 FreeText 文字层，可搜索/复制）
+~/dev/dsh-official-patch/dsh-ocr ~/Downloads/扫描件.pdf --pdf
+
+# 指定语言 / 输出基名
+~/dev/dsh-official-patch/dsh-ocr 扫描件.pdf --langs zh-Hans,en-US --out /tmp/out
+```
+
+支持 PDF 与 png/jpg 图片输入；识别完成后把带文字层的 PDF（或 `--out` 指定基名）拖进 DSH 即可被 agent 读取。要求 macOS 12+（Vision 中文识别），Apple Silicon / Intel 均可。
 
 ## 故障排查
 

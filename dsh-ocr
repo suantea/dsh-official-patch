@@ -1,0 +1,6 @@
+#!/bin/bash
+# dsh-ocr — 扫描 PDF/图片 OCR（零依赖，macOS Vision）
+# 用法: dsh-ocr <input.pdf|input.png|jpg> [--pdf] [--langs zh-Hans,en-US] [--out <base>]
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec swift "$DIR/dsh-ocr.swift" "$@"
