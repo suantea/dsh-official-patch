@@ -153,7 +153,7 @@ ZH_FIXES = {
 ZH_FIXES["dsh-client-ui-conversation"] = {
     '"access.fullLabel": "Full access",': '"access.fullLabel": "完全访问",',
 }
-_app_root = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(conv_path))))
+_app_root = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(conv_path)))))
 for _pkg, _repl in ZH_FIXES.items():
     _p = _os.path.join(_app_root, "node_modules", "@deepseek-ai", _pkg, "lib", "client.js")
     if not _os.path.exists(_p):
