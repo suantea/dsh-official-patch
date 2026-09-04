@@ -69,6 +69,7 @@ else:
         "\t\t\t\t\t\t\tconst refText = refs.map((p) => /\\s/.test(p) ? `@\"${p}\"` : `@${p}`).join(\" \") + \" \";\n"
         "\t\t\t\t\t\t\tif (typeof keyboard !== \"undefined\") keyboard.paste(refText);\n"
         "\t\t\t\t\t\t}\n"
+        "\t\t\t\t\t\tif (images.length > 0) addImages(images);\n"
         "\t\t\t\t\t\treturn;\n"
         "\t\t\t\t\t}\n"
         "\t\t\t\t\tif (images.length === 0) return;\n"
@@ -80,21 +81,10 @@ else:
     c2_block = "\t\t\t\tif (addImages === void 0 || files.length === 0) return;\n" + chip_block
     data = inject_once(data, [(c1_anchor, chip_block), (c2_anchor, c2_block)], "intakeImages")
 
-    # ---- 2. paste()：@路径（挂起文件）→ U+FFFC，走官方 detect 渲染 chip ----
-    b2 = (
-        "\t\t\t\t// DSH Desktop patch: @/path → U+FFFC\n"
-        "\t\t\t\ttext = text.replace(/@(?:@|&quot;([^&]*?)&quot;|([^\\s]+))/gu, (_, q, plain) => {\n"
-        "\t\t\t\t\tconst p = q !== undefined ? q : plain;\n"
-        "\t\t\t\t\treturn window.dshDesktopPendingFilePaths && window.dshDesktopPendingFilePaths.includes(p) ? \"\\uFFFC\" : \"@\" + p;\n"
-        "\t\t\t\t});\n"
-    )
-    a2_full = "\t\t\tpaste(text) {\n\t\t\t\tconst clean = text.replace(REFERENCE_PLACEHOLDER_RE, \"\");\n"
-    a2_loose = "\t\t\tpaste(text) {\n"
-    b2_loose = "\t\t\t\tconst clean = text.replace(REFERENCE_PLACEHOLDER_RE, \"\");\n" + b2
-    data = inject_once(data, [(a2_full, b2), (a2_loose, b2_loose)], "paste()")
-
-    # ---- 3. Je$2（粘贴事件）：文件 → 取路径进 pending，仍走官方 intakeFiles ----
-    b3 = (
+    # ---- 2. Je$2（粘贴事件）：文件 → 取路径进 pending，仍走官方 intakeFiles ----
+    # 核心块只补路径提取；完整锚点（a3_full）已含原版 intakeFiles 调用行，
+    # 宽松锚点（a3_loose）则在 b3_loose 里补上调用行 —— 避免重复调用。
+    b3_core = (
         "\t\t\t\tif (files.length > 0) {\n"
         "\t\t\t\t\tconst bridge = typeof window !== \"undefined\" && window.dshDesktopFileBridge;\n"
         "\t\t\t\t\tif (bridge && typeof bridge.getPathForFile === \"function\") {\n"
@@ -104,7 +94,6 @@ else:
         "\t\t\t\t\t\t}\n"
         "\t\t\t\t\t\tif (refs.length > 0) window.dshDesktopPendingFilePaths = refs;\n"
         "\t\t\t\t\t}\n"
-        "\t\t\t\t\thandlers.intakeFiles(files);\n"
         "\t\t\t\t}\n"
     )
     a3_full = "\t\t\t}, 4), editor.registerCommand(Je$2, (event) => {\n\t\t\t\tconst clipboardData = event.clipboardData ?? null;\n\t\t\t\tif (clipboardData === null) return false;\n\t\t\t\tconst files = Array.from(clipboardData.items).filter((item) => item.kind === \"file\").map((item) => item.getAsFile()).filter((file) => file !== null);\n\t\t\t\tif (files.length > 0) handlers.intakeFiles(files);\n"
@@ -113,8 +102,9 @@ else:
         "\t\t\t\tconst clipboardData = event.clipboardData ?? null;\n"
         "\t\t\t\tif (clipboardData === null) return false;\n"
         "\t\t\t\tconst files = Array.from(clipboardData.items).filter((item) => item.kind === \"file\").map((item) => item.getAsFile()).filter((file) => file !== null);\n"
-    ) + b3
-    data = inject_once(data, [(a3_full, b3), (a3_loose, b3_loose)], "Je$2")
+        "\t\t\t\tif (files.length > 0) handlers.intakeFiles(files);\n"
+    ) + b3_core
+    data = inject_once(data, [(a3_full, b3_core), (a3_loose, b3_loose)], "Je$2")
 
     write(conv_path, data)
 
